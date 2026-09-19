@@ -50,7 +50,7 @@ with t1:
     st.pydeck_chart(pdk.Deck(
         layers=[pdk.Layer("ScatterplotLayer", s, get_position="[lon, lat]", get_radius="700 + 1800 * congestion",
                           get_fill_color="[r, gc, 60, 190]", pickable=True)],
-        initial_view_state=pdk.ViewState(latitude=19.065, longitude=72.868, zoom=11.6),
+        initial_view_state=pdk.ViewState(latitude=19.055, longitude=72.92, zoom=11.2),
         tooltip={"text": "{zone}\nVehicles/h: {shown}"}))
     hm = g.copy(); hm["shown"] = view(hm.vehicles.values)
     st.altair_chart(alt.Chart(hm).mark_rect().encode(
@@ -89,7 +89,7 @@ with t2:
 with t3:
     h = pd.read_csv(HIST)
     st.subheader("Prediction error on newly arriving data (lower is better)")
-    st.write("A new mall opens in the Kurla LBS Marg mall belt on day 60 (simulated event). A frozen model never adapts; the evolving model retrains on each new 15-day chunk.")
+    st.write(f"A new mall opens in the mall-belt zone ({names[4]}) on day 60 (simulated event). A frozen model never adapts; the evolving model retrains on each new 15-day chunk.")
     st.line_chart(h.set_index("chunk")[["mae_mall_frozen", "mae_mall_evolving"]].rename(columns={"mae_mall_frozen": "Frozen model", "mae_mall_evolving": "Self-evolving model"}))
     st.dataframe(h, hide_index=True)
     d = history(); w = d[d.zone_id == 4].groupby(d.day // 7).congestion.mean().rename("Mall belt weekly congestion")
