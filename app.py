@@ -1,5 +1,6 @@
 import streamlit as st, pandas as pd, numpy as np, altair as alt, pydeck as pdk, os
 from config import *
+import streamlit.components.v1 as components
 import model as M, simulate as S, privacy as P
 
 st.set_page_config(page_title="Self-Evolving City Twin", page_icon="🏙️", layout="wide")
@@ -38,7 +39,7 @@ g["congestion"] = M.predict(net(), g).clip(0)
 g["vehicles"] = g.congestion * g.zone_id.map(lambda z: ZONES[z]["cap"]); g["zone"] = g.zone_id.map(names)
 
 st.title("🏙️ Self-Evolving City Twin")
-t1, t2, t3, t4 = st.tabs(["🗺️ City now", "🧪 What-if simulator", "🧠 Self-evolving model", "🔒 Privacy & security"])
+t1, t2, t3, t4, t5 = st.tabs(["🗺️ City now", "🧪 What-if simulator", "🧠 Self-evolving model", "🔒 Privacy & security", "🚦 Live traffic (TomTom)"])
 
 with t1:
     hr = st.slider("Hour of day", 0, 23, 9)
@@ -96,3 +97,12 @@ with t4:
     cmp = pd.DataFrame({"Public view (ε-noised)": P.dp_noise(x.vehicles.values, eps).round(0)}, index=x.index)
     if role == "planner": cmp.insert(0, "Exact (planner only)", x.vehicles.round(0))
     st.table(cmp)
+
+with t5:
+    st.caption("Real BKC-Bandra-Kurla-Sion road network with live TomTom traffic. Paste your TomTom API key in the map panel and click 'Start live traffic'. Needs internet.")
+    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "live_traffic_map.html")
+    if os.path.exists(html_path):
+        with open(html_path, encoding="utf-8") as f:
+            components.html(f.read(), height=720, scrolling=False)
+    else:
+        st.warning("live_traffic_map.html not found. Put it in the same folder as app.py.")
