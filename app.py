@@ -39,7 +39,7 @@ g["congestion"] = M.predict(net(), g).clip(0)
 g["vehicles"] = g.congestion * g.zone_id.map(lambda z: ZONES[z]["cap"]); g["zone"] = g.zone_id.map(names)
 
 st.title("🏙️ Self-Evolving City Twin")
-t1, t2, t3, t4, t5 = st.tabs(["🗺️ City now", "🧪 What-if simulator", "🧠 Self-evolving model", "🔒 Privacy & security", "🚦 Live traffic (TomTom)"])
+t1, t2, t3, t4 = st.tabs(["🗺️ City now", "🧪 What-if simulator", "🧠 Self-evolving model", "🔒 Privacy & security"])
 
 with t1:
     hr = st.slider("Hour of day", 0, 23, 9)
@@ -50,7 +50,7 @@ with t1:
     st.pydeck_chart(pdk.Deck(
         layers=[pdk.Layer("ScatterplotLayer", s, get_position="[lon, lat]", get_radius="700 + 1800 * congestion",
                           get_fill_color="[r, gc, 60, 190]", pickable=True)],
-        initial_view_state=pdk.ViewState(latitude=19.075, longitude=72.895, zoom=10.3),
+        initial_view_state=pdk.ViewState(latitude=19.065, longitude=72.868, zoom=11.6),
         tooltip={"text": "{zone}\nVehicles/h: {shown}"}))
     hm = g.copy(); hm["shown"] = view(hm.vehicles.values)
     st.altair_chart(alt.Chart(hm).mark_rect().encode(
@@ -59,6 +59,16 @@ with t1:
         use_container_width=True)
 
 with t2:
+    st.subheader("🗺️ Road network map: live traffic + construction / road-closure what-if")
+    st.caption("Real BKC-Bandra-Kurla-Sion roads (OpenStreetMap). Paste your TomTom key in the map panel for live traffic (needs internet). Scroll down for the demand-based what-if simulator.")
+    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "live_traffic_map.html")
+    if os.path.exists(html_path):
+        with open(html_path, encoding="utf-8") as f:
+            components.html(f.read(), height=760, scrolling=False)
+    else:
+        st.warning("live_traffic_map.html not found. Put it in the same folder as app.py.")
+    st.divider()
+    st.subheader("📊 Demand-based what-if: buses, road closure, new mall")
     c1, c2, c3 = st.columns(3)
     bz = c1.selectbox("Add buses in", list(ZONES), format_func=names.get, key="bz"); nb = c1.slider("Extra buses", 0, 10, 0)
     cz = c2.selectbox("Close road in", list(ZONES), format_func=names.get, key="cz"); cp = c2.slider("Road capacity lost %", 0, 80, 0)
@@ -79,10 +89,10 @@ with t2:
 with t3:
     h = pd.read_csv(HIST)
     st.subheader("Prediction error on newly arriving data (lower is better)")
-    st.write("A new mall opens in Mall District on day 60. A frozen model never adapts; the evolving model retrains on each new 15-day chunk.")
+    st.write("A new mall opens in the Kurla LBS Marg mall belt on day 60 (simulated event). A frozen model never adapts; the evolving model retrains on each new 15-day chunk.")
     st.line_chart(h.set_index("chunk")[["mae_mall_frozen", "mae_mall_evolving"]].rename(columns={"mae_mall_frozen": "Frozen model", "mae_mall_evolving": "Self-evolving model"}))
     st.dataframe(h, hide_index=True)
-    d = history(); w = d[d.zone_id == 4].groupby(d.day // 7).congestion.mean().rename("Mall District weekly congestion")
+    d = history(); w = d[d.zone_id == 4].groupby(d.day // 7).congestion.mean().rename("Mall belt weekly congestion")
     st.line_chart(w)
 
 with t4:
@@ -98,11 +108,3 @@ with t4:
     if role == "planner": cmp.insert(0, "Exact (planner only)", x.vehicles.round(0))
     st.table(cmp)
 
-with t5:
-    st.caption("Real BKC-Bandra-Kurla-Sion road network with live TomTom traffic. Paste your TomTom API key in the map panel and click 'Start live traffic'. Needs internet.")
-    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "live_traffic_map.html")
-    if os.path.exists(html_path):
-        with open(html_path, encoding="utf-8") as f:
-            components.html(f.read(), height=720, scrolling=False)
-    else:
-        st.warning("live_traffic_map.html not found. Put it in the same folder as app.py.")
