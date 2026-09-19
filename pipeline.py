@@ -1,5 +1,5 @@
 """DE layer: encrypted raw -> clean -> features -> pseudonymize -> SQLite."""
-import io, os, sqlite3, numpy as np, pandas as pd
+import io, os, json, sqlite3, numpy as np, pandas as pd
 from config import *
 import privacy
 
@@ -11,6 +11,7 @@ def run():
     n0 = len(df)
     df = df.drop_duplicates(["timestamp", "zone_id"]); n1 = len(df)
     cap = df.zone_id.map(lambda z: ZONES[z]["cap"])
+    orig_missing = int(df.vehicles.isna().sum())
     glitch = df.vehicles > 2.2 * cap
     df.loc[glitch, "vehicles"] = np.nan
     missing = df.vehicles.isna().sum()
@@ -25,6 +26,12 @@ def run():
     df["sensor_pid"] = df.sensor_id.map(privacy.pseudonymize)
     df = df.drop(columns="sensor_id")
     with sqlite3.connect(DB) as con: df.to_sql("traffic", con, if_exists="replace", index=False)
+    report = dict(raw_rows=int(n0), duplicates_removed=int(n0 - n1), clean_rows=int(len(df)),
+                  missing_in_raw=orig_missing, glitches_removed=int(glitch.sum()), values_imputed=int(missing),
+                  remaining_nulls=int(df[["vehicles", "congestion"]].isna().sum().sum()),
+                  zones=int(df.zone_id.nunique()), days=int(df.day.nunique()),
+                  start=str(df.timestamp.min().date()), end=str(df.timestamp.max().date()))
+    with open(QUALITY, "w") as f: json.dump(report, f, indent=2)
     print(f"rows {n0} -> {n1} after dedup | glitches removed {int(glitch.sum())} | values imputed {int(missing)} | saved {DB}")
 
 if __name__ == "__main__": run()

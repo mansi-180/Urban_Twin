@@ -1,0 +1,7 @@
+{
+  "model_mae": 0.013549911617904954,
+  "baseline_mae": 0.01493272411738302,
+  "model_mae_special": 0.023119563184030235,
+  "baseline_mae_special": 0.03943444698040286,
+  "special_rows": 132
+}

@@ -1,3 +1,4 @@
+import json
 import streamlit as st, pandas as pd, numpy as np, altair as alt, pydeck as pdk, os
 from config import *
 import streamlit.components.v1 as components
@@ -39,7 +40,7 @@ g["congestion"] = M.predict(net(), g).clip(0)
 g["vehicles"] = g.congestion * g.zone_id.map(lambda z: ZONES[z]["cap"]); g["zone"] = g.zone_id.map(names)
 
 st.title("🏙️ Self-Evolving City Twin")
-t1, t2, t3, t4 = st.tabs(["🗺️ City now", "🧪 What-if simulator", "🧠 Self-evolving model", "🔒 Privacy & security"])
+t1, t2, t3, t4, t5 = st.tabs(["🗺️ City now", "🧪 What-if simulator", "🧠 Self-evolving model", "🔒 Privacy & security", "🛠️ Data pipeline"])
 
 with t1:
     hr = st.slider("Hour of day", 0, 23, 9)
@@ -87,6 +88,19 @@ with t2:
     st.caption("Scenario effects are assumptions (see simulate.py) applied on top of the learned model.")
 
 with t3:
+    if os.path.exists(METRICS):
+        with open(METRICS) as f: mt = json.load(f)
+        k1, k2, k3 = st.columns(3)
+        k1.metric("Simple-average baseline (MAE)", f"{mt['baseline_mae']:.4f}")
+        k2.metric("Neural network (MAE)", f"{mt['model_mae']:.4f}")
+        k3.metric("Error reduction vs baseline", f"{(1 - mt['model_mae'] / mt['baseline_mae']) * 100:.0f}%")
+        if "model_mae_special" in mt:
+            j1, j2, j3 = st.columns(3)
+            j1.metric("Baseline on rain / event hours", f"{mt['baseline_mae_special']:.4f}")
+            j2.metric("Neural network on rain / event hours", f"{mt['model_mae_special']:.4f}")
+            j3.metric("Error reduction on rain / event hours", f"{(1 - mt['model_mae_special'] / mt['baseline_mae_special']) * 100:.0f}%")
+        st.caption("Held-out days 52-59. Baseline = average congestion for the same zone, hour and weekday/weekend type. It ignores rain and events, which is where the neural network helps most.")
+        st.divider()
     h = pd.read_csv(HIST)
     st.subheader("Prediction error on newly arriving data (lower is better)")
     st.write(f"A new mall opens in the mall-belt zone ({names[4]}) on day 60 (simulated event). A frozen model never adapts; the evolving model retrains on each new 15-day chunk.")
@@ -108,3 +122,21 @@ with t4:
     if role == "planner": cmp.insert(0, "Exact (planner only)", x.vehicles.round(0))
     st.table(cmp)
 
+
+with t5:
+    st.subheader("Data engineering: pipeline quality report")
+    if os.path.exists(QUALITY):
+        with open(QUALITY) as f: q = json.load(f)
+        k = st.columns(5)
+        k[0].metric("Raw rows", f"{q['raw_rows']:,}"); k[1].metric("Duplicates removed", q["duplicates_removed"])
+        k[2].metric("Sensor glitches removed", q["glitches_removed"]); k[3].metric("Gaps interpolated", q["values_imputed"])
+        k[4].metric("Clean rows", f"{q['clean_rows']:,}")
+        st.bar_chart(pd.DataFrame({"rows": [q["raw_rows"], q["clean_rows"]]}, index=["Raw", "Clean"]))
+        st.table(pd.DataFrame({
+            "Step": ["1. Decrypt raw file", "2. Remove duplicates", "3. Detect sensor glitches", "4. Fill gaps", "5. Feature engineering", "6. Pseudonymise and store"],
+            "What happens": ["Raw data is kept only as a Fernet-encrypted file", f"{q['duplicates_removed']} repeated timestamp-zone rows dropped",
+                             f"{q['glitches_removed']} readings above 2.2x road capacity marked invalid", f"{q['values_imputed']} missing/invalid values interpolated per zone (raw file had {q['missing_in_raw']} blanks)",
+                             "hour, weekday, weekend/holiday, day index, congestion = vehicles / capacity", "Sensor IDs hashed, saved to SQLite (data/city.db)"]}))
+        st.caption(f"Coverage: {q['zones']} zones, {q['days']} days ({q['start']} to {q['end']}). Null values left after cleaning: {q['remaining_nulls']}.")
+    else:
+        st.info("Report not found. Run: python run_all.py")

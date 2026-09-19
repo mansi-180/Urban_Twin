@@ -1,3 +1,5 @@
 ﻿.venv/
 __pycache__/
 data/secret.key
+
+data/secret.key

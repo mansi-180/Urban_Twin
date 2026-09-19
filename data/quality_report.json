@@ -1,0 +1,13 @@
+{
+  "raw_rows": 17330,
+  "duplicates_removed": 50,
+  "clean_rows": 17280,
+  "missing_in_raw": 172,
+  "glitches_removed": 34,
+  "values_imputed": 206,
+  "remaining_nulls": 0,
+  "zones": 6,
+  "days": 120,
+  "start": "2026-05-04",
+  "end": "2026-08-31"
+}

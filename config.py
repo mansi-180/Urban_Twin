@@ -2,6 +2,7 @@ import pandas as pd
 DATA, MODELS = "data", "models"
 RAW, RAW_ENC = f"{DATA}/raw_traffic.csv", f"{DATA}/raw_traffic.enc"
 KEY, DB, HIST = f"{DATA}/secret.key", f"{DATA}/city.db", f"{DATA}/learning_history.csv"
+QUALITY, METRICS = f"{DATA}/quality_report.json", f"{DATA}/model_metrics.json"
 START, DAYS, MALL_OPEN_DAY = "2026-05-04", 120, 60
 HOLIDAYS = {str((pd.Timestamp(START) + pd.Timedelta(days=d)).date()) for d in (14, 40, 75, 100)}
 # Real Mumbai areas (approx. centre coordinates). Traffic values are SIMULATED using each area's typical

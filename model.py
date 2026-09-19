@@ -1,5 +1,5 @@
 """DL layer: MLP with zone embedding predicts congestion (vehicles/capacity); incremental 'self-evolving' retraining."""
-import os, sqlite3, numpy as np, pandas as pd, torch, torch.nn as nn
+import os, json, sqlite3, numpy as np, pandas as pd, torch, torch.nn as nn
 from config import *
 
 def load():
@@ -44,7 +44,13 @@ def train_initial():
     torch.manual_seed(0); os.makedirs(MODELS, exist_ok=True)
     df = load(); tr, va = df[df.day < 52], df[(df.day >= 52) & (df.day < MALL_OPEN_DAY)]
     m = fit(TrafficNet(), tr, 80)
-    print(f"base model validation MAE (congestion ratio): {mae(m, va):.4f}")
+    from baseline import fit_baseline, mae_baseline
+    bl = fit_baseline(tr); sp = va[(va.rain_mm > 0) | (va.is_event == 1)]   # rain / event rows
+    res = dict(model_mae=mae(m, va), baseline_mae=mae_baseline(bl, va),
+               model_mae_special=mae(m, sp), baseline_mae_special=mae_baseline(bl, sp), special_rows=int(len(sp)))
+    with open(METRICS, "w") as f: json.dump(res, f, indent=2)
+    print(f"validation MAE (congestion ratio): neural net {res['model_mae']:.4f} vs simple-average baseline {res['baseline_mae']:.4f}")
+    print(f"rain/event rows only: neural net {res['model_mae_special']:.4f} vs baseline {res['baseline_mae_special']:.4f}")
     torch.save(m.state_dict(), f"{MODELS}/base.pt")
 
 def evolve():
