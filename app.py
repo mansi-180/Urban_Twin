@@ -4,10 +4,10 @@ from config import *
 import streamlit.components.v1 as components
 import model as M, simulate as S, privacy as P
 
-st.set_page_config(page_title="Self-Evolving City Twin", page_icon="🏙️", layout="wide")
+st.set_page_config(page_title="Urban digital Twin", page_icon="", layout="wide")
 if "role" not in st.session_state: st.session_state.role = None
 if not st.session_state.role:
-    st.title("🏙️ Self-Evolving City Twin")
+    st.title(" Urban Digital Twin")
     u = st.text_input("Username"); pw = st.text_input("Password", type="password")
     if st.button("Login"):
         r = P.login(u, pw)
@@ -39,37 +39,47 @@ g = pd.DataFrame([dict(zone_id=z, hour=h, is_weekend=int(dow >= 5), rain_mm=rain
 g["congestion"] = M.predict(net(), g).clip(0)
 g["vehicles"] = g.congestion * g.zone_id.map(lambda z: ZONES[z]["cap"]); g["zone"] = g.zone_id.map(names)
 
-st.title("🏙️ Self-Evolving City Twin")
-t1, t2, t3, t4, t5 = st.tabs(["🗺️ City now", "🧪 What-if simulator", "🧠 Self-evolving model", "🔒 Privacy & security", "🛠️ Data pipeline"])
+st.title(" Self-Evolving City Twin")
+t1, t2, t3, t4,t5 = st.tabs(["City now", " What-if simulator", " Self-evolving model", " Privacy & security","Data Pipeline"])
 
 with t1:
-    hr = st.slider("Hour of day", 0, 23, 9)
-    s = g[g.hour == hr].copy()
-    s["lat"] = s.zone_id.map(lambda z: ZONES[z]["lat"]); s["lon"] = s.zone_id.map(lambda z: ZONES[z]["lon"])
-    c = s.congestion.clip(0, 1); s["r"] = (255 * c).astype(int); s["gc"] = (255 * (1 - c)).astype(int)
-    s["shown"] = view(s.vehicles.values).round(0)
-    st.pydeck_chart(pdk.Deck(
-        layers=[pdk.Layer("ScatterplotLayer", s, get_position="[lon, lat]", get_radius="700 + 1800 * congestion",
-                          get_fill_color="[r, gc, 60, 190]", pickable=True)],
-        initial_view_state=pdk.ViewState(latitude=19.055, longitude=72.92, zoom=11.2),
-        tooltip={"text": "{zone}\nVehicles/h: {shown}"}))
-    hm = g.copy(); hm["shown"] = view(hm.vehicles.values)
-    st.altair_chart(alt.Chart(hm).mark_rect().encode(
-        x="hour:O", y=alt.Y("zone:N", title=None),
-        color=alt.Color("shown:Q", title="Vehicles/h", scale=alt.Scale(scheme="redyellowgreen", reverse=True))),
-        use_container_width=True)
-
-with t2:
-    st.subheader("🗺️ Road network map: live traffic + construction / road-closure what-if")
-    st.caption("Real BKC-Bandra-Kurla-Sion roads (OpenStreetMap). Paste your TomTom key in the map panel for live traffic (needs internet). Scroll down for the demand-based what-if simulator.")
+    st.caption("Real BKC-Bandra-Kurla-Sion road network with live TomTom traffic.")
     html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "live_traffic_map.html")
     if os.path.exists(html_path):
         with open(html_path, encoding="utf-8") as f:
             components.html(f.read(), height=760, scrolling=False)
     else:
-        st.warning("live_traffic_map.html not found. Put it in the same folder as app.py.")
+        st.warning("live_traffic_map.html not found.")
+ 
+    with st.expander("Model forecast by zone (simulated data)"):
+        hr = st.slider("Hour of day", 0, 23, 9)
+        s = g[g.hour == hr].copy()
+        s["lat"] = s.zone_id.map(lambda z: ZONES[z]["lat"]); s["lon"] = s.zone_id.map(lambda z: ZONES[z]["lon"])
+        c = s.congestion.clip(0, 1); s["r"] = (255 * c).astype(int); s["gc"] = (255 * (1 - c)).astype(int)
+        s["shown"] = view(s.vehicles.values).round(0)
+        st.pydeck_chart(pdk.Deck(
+            layers=[pdk.Layer("ScatterplotLayer", s, get_position="[lon, lat]", get_radius="700 + 1800 * congestion",
+                              get_fill_color="[r, gc, 60, 190]", pickable=True)],
+            initial_view_state=pdk.ViewState(latitude=19.075, longitude=72.895, zoom=10.3),
+            tooltip={"text": "{zone}\nVehicles/h: {shown}"}))
+        hm = g.copy(); hm["shown"] = view(hm.vehicles.values)
+        st.altair_chart(alt.Chart(hm).mark_rect().encode(
+            x="hour:O", y=alt.Y("zone:N", title=None),
+            color=alt.Color("shown:Q", title="Vehicles/h", scale=alt.Scale(scheme="redyellowgreen", reverse=True))),
+            use_container_width=True)
+
+
+with t2:
+    st.subheader(" Road network map: live traffic + construction / road-closure what-if")
+    st.caption("Real BKC-Bandra-Kurla-Sion roads (OpenStreetMap)..")
+    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "live_traffic_map.html")
+    if os.path.exists(html_path):
+        with open(html_path, encoding="utf-8") as f:
+            components.html(f.read(), height=760, scrolling=False)
+    else:
+        st.warning("live_traffic_map.html not found.")
     st.divider()
-    st.subheader("📊 Demand-based what-if: buses, road closure, new mall")
+    st.subheader(" Demand-based what-if: buses, road closure, new mall")
     c1, c2, c3 = st.columns(3)
     bz = c1.selectbox("Add buses in", list(ZONES), format_func=names.get, key="bz"); nb = c1.slider("Extra buses", 0, 10, 0)
     cz = c2.selectbox("Close road in", list(ZONES), format_func=names.get, key="cz"); cp = c2.slider("Road capacity lost %", 0, 80, 0)
